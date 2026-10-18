@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Relay · Department client
 
-## Getting Started
+A Next.js + Tauri workspace for a single department computer. All interface text is English.
 
-First, run the development server:
+The left sidebar has one coordinator channel and the local department identity. The center receives live model output and tool cards. The right sidebar lists the local shared, private and workspace files. File contents are viewed through tool activity, not a file browser.
+
+## Run
+
+On the department computer, start the local agent service from the backend repository:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd /Users/shenweizhang/Desktop/distributed-mas-demo
+.venv/bin/python -m server.department --department product --port 8101
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+This replaces `python -m distributed.agent --department product` for this computer. Stop that older agent before starting this one: the coordinator accepts one device per department. Keep the coordinator running separately.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+For a remote coordinator over Tailscale:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+.venv/bin/python -m server.department --department product --hub ws://YOUR_COORDINATOR_TAILSCALE_IP:8800 --port 8101
+```
 
-## Learn More
+Change `--department` to `sales` or `customer` on the other machines; use `--data-dir` for a custom department directory and `--id` for a custom device name. Device identity and files come from the service, so the frontend code is identical across computers.
 
-To learn more about Next.js, take a look at the following resources:
+Start the desktop window:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+cd /Users/shenweizhang/Desktop/Distributed-MAS-Frontend-Client
+npm run desktop:dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Or use `npm run dev -- --port 3001` for a browser preview. `npm run build` exports static assets to `out/` for Tauri. The client defaults to the loopback service `http://127.0.0.1:8101`; set `NEXT_PUBLIC_DEPARTMENT_API_URL` in `.env.local` before starting/building to change it.
 
-## Deploy on Vercel
+## Owner approvals
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The client asks before running a task, granting access to `private/`, and sharing the egress-checked conclusion. Each action answers one server-generated approval ID. Closing a dialog leaves it pending; Review reopens it. A timeout denies the request. Losing the hub cancels the task and its pending approval. Losing the UI connection preserves the pending request until its timeout, and SSE reconnects with an authoritative snapshot.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+No raw file or tool output is sent to the coordinator. The local HTTP service binds to loopback only. The file tree lists names and sizes and does not follow symlinks. Before the service connects, the tree is explicitly marked **Preview** and contains example Product filenames.
+
+## Verify
+
+```bash
+npm run lint
+npm test
+npm run build
+```
